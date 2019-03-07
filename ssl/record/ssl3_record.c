@@ -146,7 +146,6 @@ int ssl3_get_record(SSL *s)
         max_recs = 1;
     sess = s->session;
 
-    printf("%s:%d: begin\n", __FUNCTION__, __LINE__);
     do {
         /* check if we have the header */
         if ((RECORD_LAYER_get_rstate(&s->rlayer) != SSL_ST_READ_BODY) ||
@@ -349,12 +348,6 @@ int ssl3_get_record(SSL *s)
      * If in encrypt-then-mac mode calculate mac from encrypted record. All
      * the details below are public so no timing details can leak.
      */
-/*
-    if (SSL_READ_ETM(s))
-        printf("%s:%d: encrypt then mac\n", __FUNCTION__, __LINE__);
-    else
-        printf("%s:%d: mac then encrypt\n", __FUNCTION__, __LINE__);
-*/
     if (SSL_READ_ETM(s) && s->read_hash) {
         unsigned char *mac;
 
@@ -386,11 +379,6 @@ int ssl3_get_record(SSL *s)
     }
 
     enc_err = s->method->ssl3_enc->enc(s, rr, num_recs, 0);
-    printf("####return from enc\n");
-    for (i = 0; i < rr->length; i++)
-        printf("%02X%c", rr->data[i], ((i + 1) % 16) ? ' ' : '\n');
-    printf("\n");
-
     /*-
      * enc_err is:
      *    0: (in non-constant time) if the record is publically invalid.
@@ -402,8 +390,6 @@ int ssl3_get_record(SSL *s)
         SSLerr(SSL_F_SSL3_GET_RECORD, SSL_R_BLOCK_CIPHER_PAD_IS_WRONG);
         goto f_err;
     }
-
-     //   printf("%s:%d: after enc\n", __FUNCTION__, __LINE__);
 #ifdef SSL_DEBUG
     printf("dec %d\n", rr->length);
     {
@@ -414,8 +400,6 @@ int ssl3_get_record(SSL *s)
     printf("\n");
 #endif
 
-    
-   // printf("%s:%d: EVP_MD_CTX_md return %s\n", __FUNCTION__, __LINE__, EVP_MD_CTX_md(s->read_hash) ? "not null": "NULL");
     /* r->length is now the compressed data plus mac */
     if ((sess != NULL) &&
         (s->enc_read_ctx != NULL) &&
@@ -463,11 +447,7 @@ int ssl3_get_record(SSL *s)
                 mac = &rr[j].data[rr[j].length];
             }
 
-            printf("%s:%d: mac %s\n", __FUNCTION__, __LINE__, mac);
-
             i = s->method->ssl3_enc->mac(s, &rr[j], md, 0 /* not send */ );
-
-            printf("%s:%d: md %s\n", __FUNCTION__, __LINE__, md);
             if (i < 0 || mac == NULL
                 || CRYPTO_memcmp(md, mac, (size_t)mac_size) != 0)
                 enc_err = -1;
@@ -476,7 +456,6 @@ int ssl3_get_record(SSL *s)
         }
     }
 
-    //    printf("%s:%d: after mac\n", __FUNCTION__, __LINE__);
     if (enc_err < 0) {
         /*
          * A separate 'decryption_failed' alert was introduced with TLS 1.0,
@@ -682,11 +661,6 @@ int tls1_enc(SSL *s, SSL3_RECORD *recs, unsigned int n_recs, int sending)
     const EVP_CIPHER *enc;
     unsigned int ctr;
 
-    printf("%s:%d: begin\n", __FUNCTION__, __LINE__);
-    for (i = 0; i < recs->length; i++)
-        printf("%02X%c", recs->data[i], ((i + 1) % 16) ? ' ' : '\n');
-    printf("\n");
-
     if (n_recs == 0)
         return 0;
 
@@ -733,9 +707,6 @@ int tls1_enc(SSL *s, SSL3_RECORD *recs, unsigned int n_recs, int sending)
             enc = NULL;
         else
             enc = EVP_CIPHER_CTX_cipher(s->enc_read_ctx);
-
-        if (enc && recs->type == SSL3_RT_HANDSHAKE)
-            printf("%s:%d: enc nid %s\n", __FUNCTION__, __LINE__, OBJ_nid2ln(EVP_CIPHER_nid(enc)));
     }
 
     if ((s->session == NULL) || (ds == NULL) || (enc == NULL)) {
@@ -842,23 +813,7 @@ int tls1_enc(SSL *s, SSL3_RECORD *recs, unsigned int n_recs, int sending)
             }
         }
 
-        printf("####data1 pad %d, nrecvs %d\n", pad, n_recs);
-        for (i = 0; i < recs->length; i++)
-            printf("%02X%c", recs->data[i], ((i + 1) % 16) ? ' ' : '\n');
-        printf("\n");
-
-        printf("####input\n");
-        for (i = 0; i < reclen[0]; i++)
-            printf("%02X%c", recs[0].input[i], ((i + 1) % 16) ? ' ' : '\n');
-        printf("\n");
-
         i = EVP_Cipher(ds, recs[0].data, recs[0].input, reclen[0]);
-        printf("####data2, len %d\n", recs->length);
-        for (i = 0; i < recs->length; i++)
-            printf("%02X%c", recs->data[i], ((i + 1) % 16) ? ' ' : '\n');
-        printf("\n");
-
-
         if ((EVP_CIPHER_flags(EVP_CIPHER_CTX_cipher(ds))
              & EVP_CIPH_FLAG_CUSTOM_CIPHER)
             ? (i < 0)
@@ -879,10 +834,6 @@ int tls1_enc(SSL *s, SSL3_RECORD *recs, unsigned int n_recs, int sending)
                 }
             }
         }
-printf("####data3, len %d\n", recs->length);
-        for (i = 0; i < recs->length; i++)
-            printf("%02X%c", recs->data[i], ((i + 1) % 16) ? ' ' : '\n');
-        printf("\n");
 
         ret = 1;
         if (!SSL_READ_ETM(s) && EVP_MD_CTX_md(s->read_hash) != NULL)
