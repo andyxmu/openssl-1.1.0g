@@ -342,11 +342,53 @@ void ssl3_free_digest_list(SSL *s)
 
 int ssl3_finish_mac(SSL *s, const unsigned char *buf, int len)
 {
-    if (s->s3->handshake_dgst == NULL)
+    int i, ret;
+    int tmp_len = 0;
+    unsigned char *bd;
+    long bdlen;
+
+    if (s->s3->handshake_dgst == NULL) {
         /* Note: this writes to a memory BIO so a failure is a fatal error */
-        return BIO_write(s->s3->handshake_buffer, (void *)buf, len) == len;
-    else
-        return EVP_DigestUpdate(s->s3->handshake_dgst, buf, len);
+        tmp_len =  BIO_write(s->s3->handshake_buffer, (void *)buf, len);
+        bdlen = BIO_get_mem_data(s->s3->handshake_buffer, &bd);
+        printf("\n%s:%d: buf info (len = %d):\n", __FUNCTION__, (int)__LINE__, len);
+        for (i = 0; i < len; i++)
+            printf("%02X%c", buf[i], ((i + 1) % 16 ? ' ' : '\n'));
+        printf("\n");
+
+        printf("\n%s:%d: handshake buffer info (len = %d):\n", __FUNCTION__, __LINE__, (int)bdlen);
+        for (i = 0; i < bdlen; i++)
+            printf("%02X%c", bd[i], ((i + 1) % 16 ? ' ' : '\n'));
+        printf("\n");
+
+        return tmp_len == len;
+    }
+    else {
+        const EVP_MD *digest;
+        int md_size;
+        unsigned char *md_data;
+
+        if (!s->s3->handshake_buffer)
+            printf("%s:%d: handshake buffer NULL\n", __FUNCTION__, __LINE__);
+
+        printf("\n%s:%d: buf info2 (len = %d):\n", __FUNCTION__, __LINE__, len);
+        for (i = 0; i < len; i++)
+            printf("%02X%c", buf[i], ((i + 1) % 16 ? ' ' : '\n'));
+        printf("\n");
+
+        ret = EVP_DigestUpdate(s->s3->handshake_dgst, buf, len);
+
+        digest = EVP_MD_CTX_md(s->s3->handshake_dgst);
+        md_size = EVP_MD_size(digest);
+        md_data = EVP_MD_CTX_md_data(s->s3->handshake_dgst);
+
+        printf("\n%s:%d: digest (len = %d):\n", __FUNCTION__, __LINE__, md_size);
+        for (i = 0; i < md_size; i++)
+            printf("%02X%c", md_data[i], ((i + 1) % 16 ? ' ' : '\n'));
+        printf("\n");
+
+        return ret;
+    }
 }
 
 int ssl3_digest_cached_records(SSL *s, int keep)
@@ -355,8 +397,10 @@ int ssl3_digest_cached_records(SSL *s, int keep)
     long hdatalen;
     void *hdata;
 
+    printf("%s:%d: begin\n", __FUNCTION__, __LINE__);
     if (s->s3->handshake_dgst == NULL) {
         hdatalen = BIO_get_mem_data(s->s3->handshake_buffer, &hdata);
+        //printf("%s:%d: handshake buffer %s\n", __FUNCTION__, __LINE__, (char *)hdata);
         if (hdatalen <= 0) {
             SSLerr(SSL_F_SSL3_DIGEST_CACHED_RECORDS,
                    SSL_R_BAD_HANDSHAKE_LENGTH);
@@ -375,6 +419,21 @@ int ssl3_digest_cached_records(SSL *s, int keep)
             SSLerr(SSL_F_SSL3_DIGEST_CACHED_RECORDS, ERR_R_INTERNAL_ERROR);
             return 0;
         }
+
+        const EVP_MD *digest;
+        int md_size;
+        unsigned char *md_data;
+        int i;
+
+        digest = EVP_MD_CTX_md(s->s3->handshake_dgst);
+        md_size = EVP_MD_size(digest);
+        md_data = EVP_MD_CTX_md_data(s->s3->handshake_dgst);
+
+        printf("\n%s:%d: digest (len = %d):\n", __FUNCTION__, __LINE__, md_size);
+        for (i = 0; i < md_size; i++)
+            printf("%02X%c", md_data[i], ((i + 1) % 16 ? ' ' : '\n'));
+        printf("\n");
+
     }
     if (keep == 0) {
         BIO_free(s->s3->handshake_buffer);
