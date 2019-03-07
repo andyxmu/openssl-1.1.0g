@@ -444,6 +444,8 @@ int tls_get_message_body(SSL *s, unsigned long *len)
     long n;
     unsigned char *p;
     int i;
+     
+    printf("%s:%d begin\n", __FUNCTION__, __LINE__);
 
     if (s->s3->tmp.message_type == SSL3_MT_CHANGE_CIPHER_SPEC) {
         /* We've already read everything in */
