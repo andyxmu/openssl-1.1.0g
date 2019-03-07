@@ -1,0 +1,103 @@
+TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+
+98.243.130.118:54466 -> 10.0.40.104:443
+
+
+
+ssl3_get_record()
+crypto/evp/digest.c   EVP_DigestFinal_ex
+ssl3_digest_cached_records()
+ssl3_finish_mac()
+tls1_enc()
+tls_get_message_body()
+
+
+crypto/evp/M_sha1.c
+static const EVP_MD sha384_md = {
+    NID_sha384,
+    NID_sha384WithRSAEncryption,
+    SHA384_DIGEST_LENGTH,
+    EVP_MD_FLAG_DIGALGID_ABSENT,
+    init384,
+    update512,
+    final512,
+    NULL,
+    NULL,
+    SHA512_CBLOCK,
+    sizeof(EVP_MD *) + sizeof(SHA512_CTX),
+};
+
+
+
+hdatalen = BIO_get_mem_data(s->s3->handshake_buffer, &hdata);
+
+set args s_client -connect 172.22.14.93:443
+
+
+
+
+ 403     printf("dec %d\n", rr->length);
+ 404     {
+ 405         unsigned int z;  
+ 406         for (z = 0; z < rr->length; z++)
+ 407             printf("%02X%c", rr->data[z], ((z + 1) % 16) ? ' ' : '\n');
+ 408     }
+ 409     printf("\n");
+
+
+client端发送完clientkeyexchange消息后，会调用ssl3_digest_cached_records函数进行摘要的计算
+
+
+/*发送方*/
+s_client_main()
+	SSL_write()
+		ssl3_write_bytes()
+			s->handshake_func()  /*ossl_statem_connect*/
+				|
+				|
+			ossl_statem_connect()
+				state_machine()
+					write_state_machine()
+						ossl_statem_client_post_work()
+							tls_client_key_exchange_post_work()   /*client key exchange消息后计算摘要*/
+								ssl_generate_master_secret()
+									s->method->ssl3_enc->generate_master_secret()  /*tls1_generate_master_secret*/
+										|
+										|
+									tls1_generate_master_secret()    /*此处可以打印master secret相关东西*/
+										ssl3_digest_cached_records()  /*计算完整消息摘要for tls finish*/
+										tls1_PRF() /*根据摘要计算verfy data*/
+		do_ssl3_write()					
+			s->method->ssl3_enc->enc()  /*加密数据tls1_enc*/  
+					
+					
+下一次写
+write_state_machine()
+	statem_do_write()
+		ssl_do_write()
+			s->method->ssl3_enc->do_write()  /*ssl3_handshake_write()*/
+				ssl3_do_write()
+					ssl3_write_bytes()
+					ssl3_finish_mac() /*如果record type = SSL3_RT_HANDSHAKE*/
+			
+								
+/*接收方*/
+/*解密*/
+ssl3_read_bytes()
+	ssl3_get_record()
+		s->method->ssl3_enc->enc() /*解密数据tls1_enc()*/
+	SSL3_RECORD_set_read(1)   /*然后状态机就会根据这个位进行读操作*/
+		|
+		|
+		tls_get_message_body()  /*状态机读取*/
+			ssl3_finish_mac()
+	
+	
+GCM rfc
+https://tools.ietf.org/html/rfc5288	
+	
+	
+	
+	
+	
+								
