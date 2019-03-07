@@ -164,6 +164,7 @@ int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *size)
 
     OPENSSL_assert(ctx->digest->md_size <= EVP_MAX_MD_SIZE);
     ret = ctx->digest->final(ctx, md);
+    //printf("%s:%d: digest type %d\n", __FUNCTION__, __LINE__, ctx->digest->type);
     if (size != NULL)
         *size = ctx->digest->md_size;
     if (ctx->digest->cleanup) {
