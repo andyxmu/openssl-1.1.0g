@@ -444,7 +444,6 @@ int tls1_final_finish_mac(SSL *s, const char *str, int slen, unsigned char *out)
     int hashlen;
     unsigned char hash[EVP_MAX_MD_SIZE];
 
-    printf("%s:%d: begin\n", __FUNCTION__, __LINE__);
     if (!ssl3_digest_cached_records(s, 0))
         return 0;
 

@@ -759,7 +759,6 @@ int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
     /* Clear our SSL3_RECORD structures */
     memset(wr, 0, sizeof wr);
     for (j = 0; j < numpipes; j++) {
-        printf("%s:%d: record write pipe %d\n", j);
         /* write the header */
         *(outbuf[j]++) = type & 0xff;
         SSL3_RECORD_set_type(&wr[j], type);
@@ -1054,7 +1053,6 @@ int ssl3_read_bytes(SSL *s, int type, int *recvd_type, unsigned char *buf,
         /* get new records if necessary */
         if (num_recs == 0) {
             ret = ssl3_get_record(s);
-            printf("%s:%d: retrun\n", __FUNCTION__, __LINE__);
             if (ret <= 0)
                 return (ret);
             num_recs = RECORD_LAYER_get_numrpipes(&s->rlayer);
