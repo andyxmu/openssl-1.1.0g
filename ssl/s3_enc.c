@@ -355,6 +355,7 @@ int ssl3_digest_cached_records(SSL *s, int keep)
     long hdatalen;
     void *hdata;
 
+    printf("%s:%d bXXXXXXXXXXX\n", __FUNCTION__, __LINE__);
     if (s->s3->handshake_dgst == NULL) {
         hdatalen = BIO_get_mem_data(s->s3->handshake_buffer, &hdata);
         if (hdatalen <= 0) {
@@ -380,6 +381,30 @@ int ssl3_digest_cached_records(SSL *s, int keep)
     if (keep == 0) {
         BIO_free(s->s3->handshake_buffer);
         s->s3->handshake_buffer = NULL;
+    }
+
+    printf("%s:%d XXXXXXXXXXX\n", __FUNCTION__, __LINE__);
+    
+    /*Print the digest of all handshake buffer in client side*/
+    if ((s->statem.hand_state == TLS_ST_CW_KEY_EXCH || s->statem.hand_state == TLS_ST_SR_CHANGE)
+         && s->s3->handshake_dgst != NULL) {
+        int i;
+        const EVP_MD *digest;
+        int md_size;
+        unsigned char *md_data;
+
+        digest = EVP_MD_CTX_md(s->s3->handshake_dgst);
+        md_size = EVP_MD_size(digest);
+        md_data = EVP_MD_CTX_md_data(s->s3->handshake_dgst);
+
+        if (s->statem.hand_state == TLS_ST_CW_KEY_EXCH)
+            printf("\n%s:%d: client side message digest (len = %d):\n", __FUNCTION__, __LINE__, md_size);
+        else if (s->statem.hand_state == TLS_ST_SR_CHANGE)
+            printf("\n%s:%d: server side message digest (len = %d):\n", __FUNCTION__, __LINE__, md_size);
+
+        for (i = 0; i < md_size; i++)
+            printf("%02X%c", md_data[i], ((i + 1) % 16 ? ' ' : '\n'));
+        printf("\n");
     }
 
     return 1;

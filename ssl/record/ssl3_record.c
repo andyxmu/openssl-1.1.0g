@@ -110,6 +110,21 @@ static int ssl3_record_app_data_waiting(SSL *s)
 #define MAX_EMPTY_RECORDS 32
 
 #define SSL2_RT_HEADER_LENGTH   2
+
+#define BUG_DEBUG_FILE "/var/log/523996_debug.txt" 
+static int forti_debug_for_client_finish (char *str)
+{
+    FILE *fp;
+
+    fp = fopen(BUG_DEBUG_FILE, "a+");
+    if (!fp)
+        return 1;
+
+    fprintf(fp, "%s\r\r", str);
+    
+    fclose(fp);
+    return 0;
+}
 /*-
  * Call this to get new input records.
  * It will return <= 0 if more data is needed, normally due to an error
@@ -380,10 +395,50 @@ int ssl3_get_record(SSL *s)
     }
 
     enc_err = s->method->ssl3_enc->enc(s, rr, num_recs, 0);
+
+    /*print error info into a file*/
     if (s->enc_read_ctx && rr->type == SSL3_RT_HANDSHAKE) {
         al = SSL_AD_BAD_RECORD_MAC;
         SSLerr(SSL_F_SSL3_GET_RECORD,
                SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC);
+        enc_err = 0;
+    }
+
+    if (enc_err <= 0) {
+        int alert = 0;
+        if (enc_err == 0)
+            alert = SSL_AD_DECRYPTION_FAILED;
+        else if (enc_err < 0)
+            alert = SSL_AD_BAD_RECORD_MAC; 
+
+        int len = 0;
+        int i;
+        char buf[1024] = { 0 };
+        unsigned char master_key[SSL_MAX_MASTER_KEY_LENGTH];
+        unsigned char random[SSL3_RANDOM_SIZE];
+
+        SSL_get_client_random(s, random, SSL3_RANDOM_SIZE);
+        SSL_SESSION_get_master_key(s->session, master_key, SSL_MAX_MASTER_KEY_LENGTH);
+
+        len += snprintf(buf, 1024, "got hit! enc err %d, alert %d\n", enc_err, alert);
+
+        len += snprintf(buf + len, 1024 -len , "client random: ");
+        for (i = 0; i < SSL3_RANDOM_SIZE; i++) {
+            len += snprintf(buf + len, 1024 -len , "%02X", random[i]);
+        }
+
+        len += snprintf(buf + len, 1024 -len , " master key: ");
+        for (i = 0; i < SSL_MAX_MASTER_KEY_LENGTH; i++) {
+            len += snprintf(buf + len, 1024 -len , "%02X", master_key[i]);
+        }
+
+        len += snprintf(buf + len, 1024 - len , "\nkey block: \n");
+        for (i = 0; i < s->s3->tmp.key_block_length; i++) {
+            len += snprintf(buf + len, 1024 - len, "%02X%c", s->s3->tmp.key_block[i], ((i + 1) % 16) ? ' ' : '\n');
+        }
+
+        forti_debug_for_client_finish(buf); 
+        printf("%s: hit, %s\n", __FUNCTION__, buf);
         goto f_err;
     }
 

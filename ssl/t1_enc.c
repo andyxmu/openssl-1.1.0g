@@ -414,7 +414,14 @@ int tls1_setup_key_block(SSL *s)
             printf("%02X%c", p[z], ((z + 1) % 16) ? ' ' : '\n');
     }
 #endif
-
+    /*key block info print*/
+    printf("\n%s:%d: key block, len %d\n", __FUNCTION__, __LINE__, num);
+    {
+        int z;
+        for (z = 0; z < num; z++)
+            printf("%02X%c", p[z], ((z + 1) % 16) ? ' ' : '\n');
+    }
+    printf("\n");
     if (!(s->options & SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS)
         && s->method->version <= TLS1_VERSION) {
         /*
